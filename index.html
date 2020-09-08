@@ -83,7 +83,7 @@ Your browser does not support the HTML5 canvas tag.
 
 <script>
 
-var chunker = new ChunkWs("ws://somata.inf.ed.ac.uk/chunks/ws",function(a,b,c) {
+var chunker = new ChunkWs("wss://somata.inf.ed.ac.uk/chunks/ws",function(a,b,c) {
   document.getElementById("annotationResults").value = "Response:" + JSON.stringify(c);
   })
 
