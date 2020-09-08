@@ -1,0 +1,229 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html> <head>
+   <meta charset="utf-8">
+<title>Flower location annotation tool</title>
+
+<script src="https://somata.inf.ed.ac.uk/assets/javascripts/jquery-3.1.1.min.js"></script>
+<script src="https://somata.inf.ed.ac.uk/assets/javascripts/chunks.js"></script>
+
+<style>
+  canvas#myCanvas {cursor: crosshair}
+  div.instrHidden {visibility:hidden}
+  div.instrShow {visibility:visible}
+  div.annotationShow {visibility:visible}
+  div.resultsHidden {visibility:hidden}
+  div.resultsShow {visibility:visible}
+  body {font-family: "Helvetica", sans-serif}
+  .button {
+    background-color: #4CAF50;
+    border: none;
+    color: white;
+    padding: 8px 18px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 4px 2px;
+    cursor: pointer;
+  }
+  .showbutton {
+    background-color: #FE756C;
+    border: none;
+    color: white;
+    padding: 8px 18px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 4px 2px;
+    cursor: pointer;
+  }
+</style>
+
+</head>
+
+<body>
+<h1> E. vaginatum flower annotation tool </h1>
+<br>
+  <div id="idDiv" class="instrShow">
+  	Please provide your annotator ID (i.e. any nickname but keep it consistent along the sessions to prevent annotating duplicate images).
+  	<br>
+  	<p>Annotator ID: <textarea id="annotatorID" rows="1" cols="30"></textarea></p>
+  	<button type="button" id="annotatorIDButton" class="button">Submit annotator ID</button>
+  </div>
+  <p>
+    Instructions:<br> <br>
+    1. Please annotate all E. vaginatum flowers that you can see in the image. Every image contains arbitrary number of flowers ranging between 0 up to about 50. <br>
+    2. Annotate a flower: left-click on the image. Red dot indicates your annotation. Please click on the centre of the flower. <br>
+    3. Delete annotation: hold shift key and click on the incorrect annotation (SHIFT+CLICK). The red dot should dissapear. <br>
+    4. Submit your annotations: once you have annotated all flowers within the image, click "Store annotations" button. A new image will be loaded automatically. <br>
+    5. You can leave the website any time. All your annotations since the last submission will be stored on our server so you can resume your work later. <br> <br>
+  </p>
+
+
+<div id="instructionDiv" class="instrHidden">
+  <button type="button" id="annotationShowButton" class="button">Submit annotations</button>
+</div>
+
+<canvas class="annotation" id="myCanvas" width="1" height="1" style="border:0px solid #d3d3d3;">
+Your browser does not support the HTML5 canvas tag.
+</canvas>
+
+<p> 
+
+<div id="resultsDiv" class="resultsHidden">
+  Annotation Results<br> <textarea id="annotationResults" rows="3" cols="50"></textarea>
+</div>
+
+  <p>
+    <br> <br>
+    Troubleshooting: there are 432 images available per user. You are not expected to annotate all of them, however, if you completed all the images, new tiles won't be loaded. If you're experiencing any techinical issues, please contact Karol Stanski (karol.stanski[at]gmail.com).
+  </p>
+
+
+<script>
+
+var chunker = new ChunkWs("ws://somata.inf.ed.ac.uk/chunks/ws",function(a,b,c) {
+  document.getElementById("annotationResults").value = "Response:" + JSON.stringify(c);
+  })
+
+var annotations = [];
+var img = new Image();
+var getAnnotatorIDButton = document.getElementById("annotatorIDButton");
+// var getNextImageButton = document.getElementById("nextImageButton");
+var annotatorId = ""
+
+document.getElementById("annotationShowButton").onclick = function() {
+    var timeS = Date.now();
+    var dataToShow = {flowerLocations:annotations,filename:img.src,
+    	annotationId:annotatorId,
+    	timestamp:timeS,
+    };
+	dataToShow.experimentId="flowerhub-0.0.1";
+	dataToShow.sessionId="tmp-"+annotatorId+"-"+timeS;
+	chunker.sendChunk(dataToShow);
+
+	console.log(dataToShow)
+
+	genIm();
+}
+
+
+function genIm() {
+  var chunkLoc = "http://somata.inf.ed.ac.uk/chunks/get?experimentId=flowerhub-0.0.1&fromDate=2020-09-01T10:15:30%2B01:00"
+  $.getJSON(chunkLoc, function(result){
+    var count = 0
+      num = Math.floor((Math.random() * 432) + 2161);
+      url = "/Users/karolstanski/Documents/xyz/test_set" + "/0" + num + ".png";
+      
+
+      $.each(result, function(i, field){
+              if((field.filename.substring(7) == url) && (field.annotationId === annotatorId)) { 
+                console.log("This image " + field.filename + " has been annotated!");
+                count = 1;
+              }
+              return ( count !== 1 );
+      });
+      if ((count == 0) && (img.src != url)) {
+        img.src = url;
+        annotations = [];
+        console.log("Displaying: " + url);
+      } else {
+        return genIm();
+      }
+  });
+}
+
+function drawAnn(ctx,ann,sz) {
+  var offset = (sz)/2;
+  ctx.beginPath();
+  ctx.arc(ann.x,ann.y,sz/2,0*Math.PI,2.0*Math.PI);
+  ctx.fill();
+}
+
+function redrawCtx(myCtx) {
+  console.log("calling redraw");
+  myCtx.drawImage(img,0,0);
+  myCtx.fillStyle = 'rgba(255,0,0,.5)';
+  drawAnnotations(myCtx,annotations);
+  console.log("annotations.length:" + annotations.length);
+}
+
+function drawAnnotations(myCtx,anns) {
+  for (i=0; i< anns.length;i++) {
+     var ann = anns[i];
+     console.log(JSON.stringify(ann));
+     drawAnn(myCtx,ann,5);
+  }
+}
+
+function addAnn(ctx,ann) {
+  annotations.push(ann);
+  drawAnn(ctx,ann,5);
+}
+
+function deleteNearestAnn(ctx,mx,my) {
+  var nearestI=-1;
+  var minDist = 1E6;
+  for (i=0; i< annotations.length;i++) {
+     var ann = annotations[i];
+     var dist = Math.pow(mx-ann.x,2)+Math.pow(my-ann.y,2);
+     if(dist < minDist) {
+       nearestI = i;
+       minDist = dist;
+     }
+  }
+  annotations.splice(nearestI,1);
+  redrawCtx(ctx);
+}
+
+getAnnotatorIDButton.onclick = function() {
+  // document.getElementById("annotationDiv").className="annotationShow";
+  document.getElementById("resultsDiv").className="resultsShow";
+  annotatorId = document.getElementById("annotatorID").value;
+  console.log("ID: " + annotatorId);
+
+  document.getElementById("idDiv").className="instrHidden";
+  document.getElementById("instructionDiv").className="instrShow";
+
+  genIm();
+}
+
+
+var canvas=document.getElementById("myCanvas");
+var cLeft = canvas.offsetLeft,
+  cTop = canvas.offsetTop;
+var ctx=canvas.getContext("2d");
+
+
+img.onload = function() {
+  canvas.width = img.width;
+  canvas.height = img.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  redrawCtx(ctx);
+
+  // document.getElementById("showOtherAnnotationsButton").onclick = function() {
+  //   showOtherAnnotations(ctx);
+  // }
+
+}
+
+window.onload = function() {
+  canvas.addEventListener('click', function(event) {
+  var relX = event.pageX-cLeft;
+  var relY = event.pageY-cTop;
+  if(event.shiftKey) {
+    deleteNearestAnn(ctx,relX,relY);
+  } else {
+    var newAnnotation = {x:relX, y:relY};
+    addAnn(ctx,newAnnotation);
+    console.log(annotations);
+  }
+  })
+}
+</script>
+
+<hr>
+</body> 
+</html>
