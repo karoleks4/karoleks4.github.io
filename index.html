@@ -118,7 +118,7 @@ function genIm() {
       
 
       $.each(result, function(i, field){
-              if((field.filename.substring(7) == url) && (field.annotationId === annotatorId)) { 
+              if((field.filename == url) && (field.annotationId === annotatorId)) { 
                 console.log("This image " + field.filename + " has been annotated!");
                 count = 1;
               }
