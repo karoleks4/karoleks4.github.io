@@ -113,7 +113,10 @@ function genIm() {
   var chunkLoc = "https://somata.inf.ed.ac.uk/chunks/get?experimentId=flowerhub-0.0.1&fromDate=2020-08-10T00:15:30%2B01:00"
   $.getJSON(chunkLoc, function(result){
     var count = 0
-      num = Math.floor((Math.random() * 432) + 2161);
+      // num = Math.floor((Math.random() * 432) + 2161);
+
+      var numbers = [2164, 2177, 2224, 2233, 2253, 2286, 2428, 2436, 2539, 2548]
+      num = numbers[Math.floor( Math.random( ) * 10)]
       url = "https://raw.githubusercontent.com/karoleks4/karoleks4.github.io/master/images/0" + num + ".png"
       
 
